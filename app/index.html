@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Exorcise</title>
+  <meta name="description" content="Simple offline workout tracker">
+  <meta name="theme-color" content="#14532d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Exorcise">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main id="view" class="view"><p class="muted">Loading…</p></main>
+  <div id="timer" class="timer" aria-live="polite" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <nav id="nav" class="bottom-nav" aria-label="Main">
+    <a href="#/today" data-tab="today">Today</a>
+    <a href="#/history" data-tab="history">History</a>
+    <a href="#/settings" data-tab="settings">Settings</a>
+  </nav>
+  <noscript>This app needs JavaScript.</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
