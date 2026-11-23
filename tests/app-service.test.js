@@ -115,3 +115,47 @@ test('data survives a restart with the same store', async () => {
   const again = await createAppService(store, { seed: seedSnapshot, now: fixedNow('2026-11-25') });
   assert.equal(lastPerformance(again.logs, 'andrew', 'shoulder-shrugs', again.today()).sets[0].weight, 150);
 });
+
+import { DUMBBELL_VARIATIONS } from '../app/js/seed/dumbbell-variations.js';
+
+test('new installs get the dumbbell variations', async () => {
+  const { app } = await setup();
+  assert.deepEqual(app.day('mon').slots[0].exerciseIds, ['incline-bench-press', 'incline-dumbbell-press']);
+  assert.equal(app.day('mon').slots[0].kind, 'rotate');
+  assert.ok(app.day('fri').slots[0].exerciseIds.includes('incline-dumbbell-press'));
+  assert.equal(app.day('tue').slots[0].exerciseIds.at(-1), 'dumbbell-romanian-deadlift');
+});
+
+test('upgrading version 1 data adds dumbbell variations and keeps history and edits', async () => {
+  // Build data as version 1 stored it: no dumbbell variations.
+  const snap = seedSnapshot();
+  const added = new Set(DUMBBELL_VARIATIONS.map((v) => v.exercise.id));
+  snap.exercises = snap.exercises.filter((e) => !added.has(e.id));
+  snap.days = snap.days.map((d) => ({
+    ...d,
+    slots: d.slots
+      .filter((s) => s.id !== 'tue-3') // the user removed shrugs from the plan
+      .map((s) => {
+        const ids = s.exerciseIds.filter((id) => !added.has(id));
+        return { ...s, exerciseIds: ids, kind: ids.length === 1 ? 'single' : s.kind };
+      }),
+  }));
+  snap.meta = [{ ...snap.meta[0], schemaVersion: 1 }];
+  snap.logs.push({ id: 'mine', personId: 'andrew', date: '2026-11-23', dayId: 'mon', slotId: 'mon-1', exerciseId: 'incline-bench-press', sets: [W(125, 8)], complete: true, note: '', createdAt: 1 });
+  const logCount = snap.logs.length;
+
+  const store = createMemoryStore(snap);
+  const app = await createAppService(store, { now: fixedNow('2026-11-24') });
+  assert.equal(app.logs.length, logCount);
+  assert.deepEqual(app.day('mon').slots[0].exerciseIds, ['incline-bench-press', 'incline-dumbbell-press']);
+  assert.equal(app.day('mon').slots[0].kind, 'rotate');
+  // Incline was done last, so the dumbbell variation is next.
+  assert.equal(nextExerciseId(app.day('mon').slots[0], app.logs, 'andrew', app.today()), 'incline-dumbbell-press');
+  assert.ok(!app.day('tue').slots.some((s) => s.id === 'tue-3'), 'removed slot stays removed');
+  assert.equal(app.exercises.filter((e) => e.id === 'incline-dumbbell-press').length, 1);
+  assert.equal((await store.getAll('meta'))[0].schemaVersion, 2);
+
+  // Running the upgrade again changes nothing.
+  const again = await createAppService(store, { now: fixedNow('2026-11-24') });
+  assert.equal(again.day('mon').slots[0].exerciseIds.length, 2);
+});

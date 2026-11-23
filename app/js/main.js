@@ -10,7 +10,7 @@ import { renderToday } from './ui/today-view.js';
 import { renderHistoryList, renderHistoryDetail } from './ui/history-view.js';
 import { renderSettings, renderPlanDay, renderExerciseEdit } from './ui/settings-view.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 
 const routes = [
   [/^#\/today(?:\/([\w-]+))?$/, 'today', renderToday],
@@ -74,7 +74,16 @@ async function start() {
 }
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('Service worker failed', err));
+  // When a new version takes over, reload once so the screen uses it.
+  // Ticked sets are already saved, so nothing is lost.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch((err) => console.warn('Service worker failed', err));
 }
 
 start().catch((err) => {

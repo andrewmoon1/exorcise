@@ -1,6 +1,6 @@
 // Core record shapes and constants. No storage or UI code here.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** How an exercise is measured. Decides which number fields are shown. */
 export const Measure = Object.freeze({

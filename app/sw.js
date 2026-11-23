@@ -1,7 +1,7 @@
 // Service worker: keeps a copy of every app file so the app works offline.
 // Bump CACHE when any file changes, so phones fetch the new version.
 
-const CACHE = 'exorcise-v2';
+const CACHE = 'exorcise-v3';
 const FILES = [
   './',
   './index.html',
@@ -24,6 +24,7 @@ const FILES = [
   './js/storage/migrations.js',
   './js/actions/app-service.js',
   './js/seed/seed-data.js',
+  './js/seed/dumbbell-variations.js',
   './js/ui/dom.js',
   './js/ui/components.js',
   './js/ui/today-view.js',
@@ -33,7 +34,9 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser's HTTP cache, so a new version never stores old files.
+  const requests = FILES.map((f) => new Request(f, { cache: 'reload' }));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(requests)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

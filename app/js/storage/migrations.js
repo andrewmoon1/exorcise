@@ -3,10 +3,12 @@
 // add a function here keyed by the new version number.
 
 import { SCHEMA_VERSION } from '../domain/model.js';
+import { addVariations } from '../seed/dumbbell-variations.js';
 
 /** @type {Record<number, (data: Record<string, any[]>) => Record<string, any[]>>} */
 export const migrations = {
-  // 2: (data) => ({ ...data, logs: data.logs.map((l) => ({ ...l, rpe: null })) }),
+  // v2: add a dumbbell variation to exercises that had none.
+  2: (data) => addVariations(data),
 };
 
 /** Upgrade a full data snapshot (as used for backups) to the current version. */
