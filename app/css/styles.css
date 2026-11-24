@@ -29,6 +29,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
+/* Fast taps on + and − must not trigger the browser's double-tap zoom.
+   "manipulation" keeps pinch zoom but turns off double-tap zoom. */
+html, button, a, input, select, label { touch-action: manipulation; }
 body {
   margin: 0;
   background: var(--bg);
@@ -245,3 +248,4 @@ button:disabled { opacity: .4; cursor: default; }
 .chart-readout { margin: 0 4px 4px; min-height: 22px; font-size: 15px; font-variant-numeric: tabular-nums; }
 .chart-change { margin: 0 0 6px; font-size: 15px; }
 .chart-note { margin: 6px 0 0; font-size: 13px; }
+.chart-title { margin: 8px 4px 0; font-size: 13px; font-weight: 600; color: var(--muted); }

@@ -58,13 +58,28 @@ export const METRICS = Object.freeze({
     help: 'Longest set each workout.',
     value: (sets) => max(doneWorkSets(sets).map((s) => s.seconds)),
   },
+  sets: {
+    label: 'Sets', unit: 'sets',
+    help: 'Work sets finished each workout.',
+    value: (sets) => doneWorkSets(sets).length || null,
+  },
 });
 
+/** The measures shown together, one small chart each, in the "overview" view. */
+export function overviewFor(measure) {
+  switch (measure) {
+    case Measure.TIME: return ['seconds', 'sets'];
+    case Measure.REPS: return ['reps', 'sets'];
+    default: return ['weight', 'reps', 'sets'];
+  }
+}
+
+/** Chart choices for an exercise. 'overview' shows the measures from overviewFor() together. */
 export function metricsFor(measure) {
   switch (measure) {
-    case Measure.TIME: return ['seconds'];
-    case Measure.REPS: return ['reps', 'totalReps'];
-    default: return ['weight', 'max', 'volume'];
+    case Measure.TIME: return ['overview'];
+    case Measure.REPS: return ['overview', 'totalReps'];
+    default: return ['overview', 'max', 'volume'];
   }
 }
 

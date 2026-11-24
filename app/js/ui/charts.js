@@ -109,28 +109,52 @@ function onKeys(svg, count, getIndex, pick) {
 }
 
 /**
+ * Keeps several line charts on the same workout: tapping one chart selects
+ * that date in all of them. `onChange(date)` runs after each change.
+ */
+export function createSync(date, onChange = () => {}) {
+  const listeners = new Set();
+  return {
+    date,
+    listen(fn) { listeners.add(fn); },
+    set(d) {
+      this.date = d;
+      for (const fn of listeners) fn(d);
+      onChange(d);
+    },
+  };
+}
+
+/**
  * Line chart of values over time.
  * points: [{ date: 'YYYY-MM-DD', value, text }] oldest first. `text` is the readout for that point.
+ * Options for a group of small charts: `title` (shown above), `height`,
+ * `from`/`to` (a shared date range), `sync` (from createSync) and
+ * `readout: false` (the group shows one readout instead).
  */
-export function lineChart({ points, unit, label }) {
-  const readout = h('p', { class: 'chart-readout', 'aria-live': 'polite' });
-  const box = h('div', { class: 'chart-box' });
+export function lineChart({ points, unit, label, title, height = HEIGHT, from, to, sync, readout: showReadout = true, whole = false }) {
+  const readout = showReadout ? h('p', { class: 'chart-readout', 'aria-live': 'polite' }) : null;
+  const box = h('div', { class: 'chart-box', style: `min-height:${height}px` });
   let selected = points.length - 1;
+  let pickDate = () => {};
+  if (sync) sync.listen((d) => pickDate(d));
 
   const draw = (width) => {
     const iw = width - PAD.left - PAD.right;
-    const ih = HEIGHT - PAD.top - PAD.bottom;
+    const ih = height - PAD.top - PAD.bottom;
     const vals = points.map((p) => p.value);
     const lo = Math.min(...vals);
     const hi = Math.max(...vals);
     // Start the axis near the lowest value so changes are visible, but leave room under it.
-    const ticks = niceTicks(Math.max(0, lo - (hi - lo) * 0.25 - (hi === lo ? hi * 0.2 : 0)), hi + (hi === lo ? hi * 0.1 : 0));
+    let ticks = niceTicks(Math.max(0, lo - (hi - lo) * 0.25 - (hi === lo ? hi * 0.2 : 0)), hi + (hi === lo ? hi * 0.1 : 0), height < HEIGHT ? 2 : 4);
+    // Counts such as sets and reps get whole-number steps only.
+    if (whole && ticks[1] - ticks[0] < 1) ticks = [Math.max(0, Math.floor(lo) - 1), Math.floor(lo), Math.ceil(hi), Math.ceil(hi) + 1].filter((v, i, a) => a.indexOf(v) === i);
     const y0 = ticks[0];
     const y1 = ticks.at(-1);
     const y = (v) => PAD.top + ih - ((v - y0) / (y1 - y0 || 1)) * ih;
 
-    const first = points[0].date;
-    const lastDate = points.at(-1).date;
+    const first = from ?? points[0].date;
+    const lastDate = to ?? points.at(-1).date;
     const span = dayNum(lastDate) - dayNum(first);
     const x = (iso) => (span === 0 ? PAD.left + iw / 2 : PAD.left + ((dayNum(iso) - dayNum(first)) / span) * iw);
     const xs = points.map((p) => x(p.date));
@@ -142,14 +166,14 @@ export function lineChart({ points, unit, label }) {
       .map((t, i, all) => {
         const tx = Math.max(PAD.left, Math.min(width - PAD.right, x(t.iso)));
         const anchor = span < 50 && all.length > 1 ? (i === 0 ? 'start' : 'end') : 'middle';
-        return s('text', { class: 'tick', x: tx, y: HEIGHT - 6, 'text-anchor': anchor }, t.text);
+        return s('text', { class: 'tick', x: tx, y: height - 6, 'text-anchor': anchor }, t.text);
       });
 
     const path = points.map((p, i) => `${i ? 'L' : 'M'}${xs[i].toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
     const cross = s('line', { class: 'crosshair', y1: PAD.top, y2: PAD.top + ih });
     const dots = points.map((p, i) => s('circle', { class: 'dot', cx: xs[i], cy: y(p.value), r: 4.5 }));
     const svg = s('svg', {
-      class: 'chart', width, height: HEIGHT, viewBox: `0 0 ${width} ${HEIGHT}`,
+      class: 'chart', width, height, viewBox: `0 0 ${width} ${height}`,
       role: 'img', 'aria-label': `${label}: ${points.length} workouts. Use the left and right arrow keys to read each one.`,
     },
     grid, xLabels,
@@ -158,20 +182,26 @@ export function lineChart({ points, unit, label }) {
     points.length > 1 ? s('path', { class: 'line', d: path }) : null,
     dots);
 
-    const pick = (i) => {
-      selected = i;
-      cross.setAttribute('x1', xs[i]);
-      cross.setAttribute('x2', xs[i]);
+    // Show one date: its point if this chart has one, else only the crosshair.
+    const show = (date) => {
+      const i = points.findIndex((p) => p.date === date);
+      selected = i < 0 ? selected : i;
+      cross.setAttribute('x1', x(date));
+      cross.setAttribute('x2', x(date));
       dots.forEach((d, j) => { d.classList.toggle('selected', j === i); d.setAttribute('r', j === i ? 7 : 4.5); });
-      readout.replaceChildren(h('strong', {}, `${fmt(points[i].value)} ${unit}`), h('span', { class: 'muted' }, ` · ${points[i].text}`));
+      if (readout && i >= 0) {
+        readout.replaceChildren(h('strong', {}, `${fmt(points[i].value)} ${unit}`), h('span', { class: 'muted' }, ` · ${points[i].text}`));
+      }
     };
+    pickDate = show;
+    const pick = (i) => (sync ? sync.set(points[i].date) : show(points[i].date));
     onPick(svg, xs, pick);
     onKeys(svg, points.length, () => selected, pick);
     box.replaceChildren(svg);
-    pick(selected);
+    show(sync?.date ?? points[selected].date);
   };
   responsive(box, draw);
-  return h('div', { class: 'chart-wrap' }, readout, box);
+  return h('div', { class: 'chart-wrap' }, title ? h('p', { class: 'chart-title' }, title) : null, readout, box);
 }
 
 /**
