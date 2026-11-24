@@ -46,7 +46,7 @@ Each layer only calls the layer below it.
 | `app/js/actions/` | One function per user action (log a workout, edit the plan, backup). |
 | `app/js/domain/` | Pure rules with no storage or screen code: "last time", next variation, input checks, chart numbers (`progress.js`). |
 | `app/js/storage/` | Save and read records. `idb-store.js` (IndexedDB) and `memory-store.js` share one interface (`store.js`). |
-| `app/js/seed/` | Starting data copied from the spreadsheet, used on first start only. |
+| `app/js/seed/` | Starting data copied from the spreadsheets. `workouts-history.js` is made from `data/Workouts.xlsx` (2022 to 2025) by `python3 tools/import_workouts.py`. |
 
 Data model: the **plan** (`days` holding ordered `slots`; a slot holds one
 exercise, a rotation of variations, or a circuit) and the **history** (`logs`,

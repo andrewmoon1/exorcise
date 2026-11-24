@@ -1,7 +1,7 @@
 // Service worker: keeps a copy of every app file so the app works offline.
 // Bump CACHE when any file changes, so phones fetch the new version.
 
-const CACHE = 'exorcise-v4';
+const CACHE = 'exorcise-v5';
 const FILES = [
   './',
   './index.html',
@@ -26,6 +26,8 @@ const FILES = [
   './js/actions/app-service.js',
   './js/seed/seed-data.js',
   './js/seed/dumbbell-variations.js',
+  './js/seed/old-history.js',
+  './js/seed/workouts-history.js',
   './js/ui/dom.js',
   './js/ui/components.js',
   './js/ui/today-view.js',

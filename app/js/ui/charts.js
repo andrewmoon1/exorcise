@@ -43,6 +43,13 @@ const dayNum = (iso) => parseISODate(iso).getTime() / 86400000;
 function timeTicks(fromIso, toIso, max = 4) {
   const span = dayNum(toIso) - dayNum(fromIso);
   if (span < 50) return [fromIso, toIso].filter((v, i, a) => a.indexOf(v) === i).map((iso) => ({ iso, text: shortDate(iso) }));
+  if (span > 540) {
+    // Long ranges: one label per year, at 1 January.
+    const years = [];
+    for (let y = Number(fromIso.slice(0, 4)) + 1; y <= Number(toIso.slice(0, 4)); y++) years.push(y);
+    const step = Math.ceil(years.length / max);
+    return years.filter((_, i) => i % step === 0).map((y) => ({ iso: `${y}-01-01`, text: String(y) }));
+  }
   const out = [];
   const d = parseISODate(fromIso);
   d.setDate(1);
