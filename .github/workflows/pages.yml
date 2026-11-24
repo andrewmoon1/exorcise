@@ -27,19 +27,27 @@ jobs:
           node-version: 22
       - run: node --test tests/*.test.js
  
-  deploy:
+  # Upload and deploy run as separate jobs. When both steps ran in one job,
+  # GitHub sometimes had not yet listed the uploaded files when the deploy
+  # step looked for them, and a re-run then found two uploads and failed.
+  build:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
  
