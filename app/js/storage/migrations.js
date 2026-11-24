@@ -4,11 +4,14 @@
 
 import { SCHEMA_VERSION } from '../domain/model.js';
 import { addVariations } from '../seed/dumbbell-variations.js';
+import { addOldHistory } from '../seed/old-history.js';
 
 /** @type {Record<number, (data: Record<string, any[]>) => Record<string, any[]>>} */
 export const migrations = {
   // v2: add a dumbbell variation to exercises that had none.
   2: (data) => addVariations(data),
+  // v3: add the history from the older workout sheet (2022 to 2025).
+  3: (data) => addOldHistory(data),
 };
 
 /** Upgrade a full data snapshot (as used for backups) to the current version. */

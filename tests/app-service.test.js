@@ -5,6 +5,7 @@ import { createAppService } from '../app/js/actions/app-service.js';
 import { seedSnapshot } from '../app/js/seed/seed-data.js';
 import { nextExerciseId } from '../app/js/domain/rotation.js';
 import { lastPerformance } from '../app/js/domain/history.js';
+import { OLD_EXERCISES, OLD_LOGS } from '../app/js/seed/workouts-history.js';
 
 const fixedNow = (iso) => () => new Date(`${iso}T10:00:00`);
 const W = (weight, reps, done = true) => ({ kind: 'work', weight, reps, seconds: null, done });
@@ -32,6 +33,7 @@ test('every exercise and slot in the seed is consistent', async () => {
   }
   for (const l of app.logs) {
     assert.ok(app.exercise(l.exerciseId), `log for missing exercise ${l.exerciseId}`);
+    if (l.id.startsWith('old-')) continue; // old sheet history is not tied to a plan slot
     assert.ok(app.days.find((d) => d.id === l.dayId)?.slots.some((s) => s.id === l.slotId), `log for missing slot ${l.slotId}`);
   }
 });
@@ -117,6 +119,7 @@ test('data survives a restart with the same store', async () => {
 });
 
 import { DUMBBELL_VARIATIONS } from '../app/js/seed/dumbbell-variations.js';
+import { SCHEMA_VERSION } from '../app/js/domain/model.js';
 
 test('new installs get the dumbbell variations', async () => {
   const { app } = await setup();
@@ -153,9 +156,36 @@ test('upgrading version 1 data adds dumbbell variations and keeps history and ed
   assert.equal(nextExerciseId(app.day('mon').slots[0], app.logs, 'andrew', app.today()), 'incline-dumbbell-press');
   assert.ok(!app.day('tue').slots.some((s) => s.id === 'tue-3'), 'removed slot stays removed');
   assert.equal(app.exercises.filter((e) => e.id === 'incline-dumbbell-press').length, 1);
-  assert.equal((await store.getAll('meta'))[0].schemaVersion, 2);
+  assert.equal((await store.getAll('meta'))[0].schemaVersion, SCHEMA_VERSION);
 
   // Running the upgrade again changes nothing.
   const again = await createAppService(store, { now: fixedNow('2026-11-24') });
   assert.equal(again.day('mon').slots[0].exerciseIds.length, 2);
+});
+
+test('upgrading version 2 data adds the old sheet history once, and keeps what the user logged', async () => {
+  const snap = seedSnapshot();
+  snap.logs = snap.logs.filter((l) => !l.id.startsWith('old-'));
+  const oldOnly = new Set(OLD_EXERCISES.map((e) => e.id));
+  snap.exercises = snap.exercises.filter((e) => !oldOnly.has(e.id));
+  // The user already made a "Squat" exercise with another id.
+  snap.exercises.push({ id: 'my-squat', name: 'squat', measure: 'weight', link: '' });
+  snap.meta = [{ ...snap.meta[0], schemaVersion: 2 }];
+  snap.logs.push({ id: 'mine', personId: 'andrew', date: '2026-11-23', dayId: 'tue', slotId: 'tue-1', exerciseId: 'deadlift', sets: [W(200, 5)], complete: true, note: '', createdAt: 1 });
+  const before = snap.logs.length;
+
+  const store = createMemoryStore(snap);
+  const app = await createAppService(store, { now: fixedNow('2026-11-24') });
+  assert.equal(app.logs.length, before + OLD_LOGS.length);
+  assert.ok(app.logs.some((l) => l.id === 'mine'));
+  assert.equal(lastPerformance(app.logs, 'andrew', 'deadlift').id, 'mine');
+  assert.ok(app.logs.some((l) => l.id === 'old-deadlift-2025-08-25' && l.sets[0].weight === 185));
+  // Squat history goes to the user's own Squat, not a second one.
+  assert.equal(app.exercises.filter((e) => e.name.toLowerCase() === 'squat').length, 1);
+  assert.ok(app.logs.some((l) => l.exerciseId === 'my-squat' && l.date === '2025-08-25'));
+  // Old entries are not tied to a plan slot, so the rotation is unchanged.
+  assert.equal(nextExerciseId(app.day('tue').slots[0], app.logs, 'andrew', '2026-11-30'), 'romanian-deadlift');
+
+  const again = await createAppService(store, { now: fixedNow('2026-11-24') });
+  assert.equal(again.logs.length, before + OLD_LOGS.length);
 });

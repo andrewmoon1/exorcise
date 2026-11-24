@@ -82,11 +82,14 @@ test('the value axis uses round steps that cover the data', () => {
   assert.deepEqual(niceTicks(0, 3, 3), [0, 1, 2, 3]);
 });
 
-test('the spreadsheet history gives every weighted exercise a chart point', async () => {
+test('both spreadsheets give the deadlift chart a history from 2023 to 2026', async () => {
   const app = await createAppService(createMemoryStore(), { seed: seedSnapshot, now: () => new Date('2026-11-24T10:00:00') });
   const s = progressSeries(app.logs, 'andrew', 'deadlift', 'weight');
-  assert.deepEqual(s.map((p) => [p.date, p.value]), [['2026-07-21', 180]]);
-  assert.equal(progressSeries(app.logs, 'andrew', 'deadlift', 'max')[0].value, 252);
+  assert.deepEqual(s.map((p) => [p.date, p.value]), [
+    ['2023-06-29', 105], ['2023-07-06', 155], ['2024-04-23', 135], ['2024-06-10', 175],
+    ['2024-11-18', 155], ['2025-08-25', 185], ['2026-07-21', 180],
+  ]);
+  assert.equal(progressSeries(app.logs, 'andrew', 'deadlift', 'max').at(-1).value, 252);
   const months = monthlyActivity(app.logs, 'andrew', '2026-11-24', 12);
   assert.ok(months.reduce((t, m) => t + m.days, 0) >= 10);
 });

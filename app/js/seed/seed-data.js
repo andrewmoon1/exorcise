@@ -4,6 +4,7 @@
 import { Measure as M, SlotKind as K, SCHEMA_VERSION, SETTINGS_ID } from '../domain/model.js';
 import { DEFAULT_REST } from '../domain/sets.js';
 import { addVariations } from './dumbbell-variations.js';
+import { addOldHistory } from './old-history.js';
 
 const ex = (id, name, measure = M.WEIGHT, link = '') => ({ id, name, measure, link });
 
@@ -135,11 +136,11 @@ const logs = [
 
 export function seedSnapshot() {
   const plan = addVariations({ exercises: structuredClone(exercises), days: structuredClone(days) });
-  return {
+  return addOldHistory({
     people: structuredClone(people),
     exercises: plan.exercises,
     days: plan.days,
     logs: structuredClone(logs),
     meta: [{ id: SETTINGS_ID, schemaVersion: SCHEMA_VERSION, activePersonId: A, rest: { ...DEFAULT_REST }, warmup: true }],
-  };
+  });
 }
