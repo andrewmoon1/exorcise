@@ -6,6 +6,8 @@ A simple offline workout tracker. It replaces `data/exercise-routine.xlsx`
 - opens on today's workout,
 - fills in last time's weight, reps and sets, so a normal set is one tap on **Done**,
 - keeps every workout as history instead of overwriting it,
+- shows progress as charts: how often you train (per week or month), and for
+  each exercise its weight, estimated 1-rep max or volume over time,
 - rotates exercise variations automatically (for example Deadlift → Romanian Deadlift → Single Leg Deadlift),
 - works with no internet, and keeps all data on the device.
 
@@ -42,7 +44,7 @@ Each layer only calls the layer below it.
 | --- | --- |
 | `app/js/ui/` | Screens. Draw cards and buttons, react to taps. |
 | `app/js/actions/` | One function per user action (log a workout, edit the plan, backup). |
-| `app/js/domain/` | Pure rules with no storage or screen code: "last time", next variation, input checks. |
+| `app/js/domain/` | Pure rules with no storage or screen code: "last time", next variation, input checks, chart numbers (`progress.js`). |
 | `app/js/storage/` | Save and read records. `idb-store.js` (IndexedDB) and `memory-store.js` share one interface (`store.js`). |
 | `app/js/seed/` | Starting data copied from the spreadsheet, used on first start only. |
 

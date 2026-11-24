@@ -1,7 +1,12 @@
-# Publishes the app/ folder to GitHub Pages on every push to main.
+# Runs the tests on every push and pull request.
+# Publishes the app/ folder to GitHub Pages only on pushes to main, because
+# the github-pages environment only allows deploys from main.
 name: Deploy to GitHub Pages
  
-on: [push, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
  
 permissions:
   contents: read
@@ -9,7 +14,7 @@ permissions:
   id-token: write
  
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
  
 jobs:
@@ -24,6 +29,7 @@ jobs:
  
   deploy:
     needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
