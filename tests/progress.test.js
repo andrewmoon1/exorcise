@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { estimatedMax, progressSeries, weekStart, weeklyActivity, monthlyActivity, metricsFor } from '../app/js/domain/progress.js';
+import { estimatedMax, progressSeries, weekStart, weeklyActivity, monthlyActivity, metricsFor, overviewFor } from '../app/js/domain/progress.js';
 import { niceTicks } from '../app/js/ui/charts.js';
 import { Measure } from '../app/js/domain/model.js';
 import { createMemoryStore } from '../app/js/storage/memory-store.js';
@@ -28,6 +28,8 @@ test('progress series is oldest first, one point per date, done work sets only',
   ];
   const s = progressSeries(logs, 'a', 'dl', 'weight');
   assert.deepEqual(s.map((p) => [p.date, p.value]), [['2026-01-01', 110], ['2026-03-01', 160]]);
+  assert.deepEqual(progressSeries(logs, 'a', 'dl', 'reps').map((p) => p.value), [8, 5]);
+  assert.deepEqual(progressSeries(logs, 'a', 'dl', 'sets').map((p) => p.value), [2, 1]);
   const v = progressSeries(logs, 'a', 'dl', 'volume');
   assert.deepEqual(v.map((p) => p.value), [100 * 8 + 110 * 6, 750]);
 });
@@ -39,8 +41,10 @@ test('workouts without the number are left out of the series', () => {
 });
 
 test('metrics depend on how the exercise is measured', () => {
-  assert.deepEqual(metricsFor(Measure.WEIGHT), ['weight', 'max', 'volume']);
-  assert.deepEqual(metricsFor(Measure.TIME), ['seconds']);
+  assert.deepEqual(metricsFor(Measure.WEIGHT), ['overview', 'max', 'volume']);
+  assert.deepEqual(overviewFor(Measure.WEIGHT), ['weight', 'reps', 'sets']);
+  assert.deepEqual(metricsFor(Measure.TIME), ['overview']);
+  assert.deepEqual(overviewFor(Measure.TIME), ['seconds', 'sets']);
 });
 
 test('weeks start on Monday', () => {

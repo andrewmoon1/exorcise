@@ -3,12 +3,12 @@
 
 import { h } from './dom.js';
 import { howToLink, topBar, emptyState } from './components.js';
-import { lineChart, barChart } from './charts.js';
+import { lineChart, barChart, createSync } from './charts.js';
 import { summarize } from '../domain/sets.js';
 import { SetKind } from '../domain/model.js';
 import { formatDate, formatAgo } from '../domain/dates.js';
 import { historyFor, lastDates } from '../domain/history.js';
-import { METRICS, metricsFor, progressSeries, weeklyActivity, monthlyActivity } from '../domain/progress.js';
+import { METRICS, metricsFor, overviewFor, progressSeries, weeklyActivity, monthlyActivity } from '../domain/progress.js';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS_UNIT = { one: 'workout day', many: 'workout days' };
@@ -62,12 +62,15 @@ function progressCard(app, ui, ex) {
   const keys = metricsFor(ex.measure);
   ui.chartMetric ??= {};
   const metricKey = keys.includes(ui.chartMetric[ex.measure]) ? ui.chartMetric[ex.measure] : keys[0];
+  const parts = overviewFor(ex.measure);
+  const labelOf = (k) => (k === 'overview' ? parts.map((p, i) => (i ? METRICS[p].label.toLowerCase() : METRICS[p].label)).join(', ') : METRICS[k].label);
+  const picker = keys.length > 1
+    ? choiceRow(keys.map((k) => [k, labelOf(k)]), metricKey, (k) => { ui.chartMetric[ex.measure] = k; ui.rerender(); })
+    : null;
+  if (metricKey === 'overview') return overviewCard(app, ex, parts, picker);
+
   const metric = METRICS[metricKey];
   const series = progressSeries(app.logs, app.activePerson.id, ex.id, metricKey);
-
-  const picker = keys.length > 1
-    ? choiceRow(keys.map((k) => [k, METRICS[k].label]), metricKey, (k) => { ui.chartMetric[ex.measure] = k; ui.rerender(); })
-    : null;
 
   if (!series.length) {
     return h('section', { class: 'card' }, h('h2', {}, 'Progress'), picker,
@@ -100,6 +103,43 @@ function progressCard(app, ui, ex) {
     lineChart({ points, unit: metric.unit, label: `${ex.name} ${metric.label.toLowerCase()} over time` }),
     h('p', { class: 'chart-note muted' }, metric.help,
       series.length === 1 ? ' One workout so far, so the line starts after the next one.' : ' Tap the chart to read a workout.'));
+}
+
+/**
+ * Weight, reps and sets (or the measures that fit the exercise) as small line
+ * charts on one shared time line. Tapping any chart selects that workout in all.
+ */
+function overviewCard(app, ex, parts, picker) {
+  const today = app.today();
+  const charts = parts
+    .map((k) => ({ key: k, metric: METRICS[k], series: progressSeries(app.logs, app.activePerson.id, ex.id, k) }))
+    .filter((c) => c.series.length);
+  const head = [h('h2', {}, 'Progress'), picker];
+  if (!charts.length) return h('section', { class: 'card' }, head, h('p', { class: 'muted chart-note' }, 'Nothing to chart yet.'));
+
+  const byDate = new Map();
+  for (const c of charts) for (const p of c.series) if (!byDate.has(p.date)) byDate.set(p.date, p.log);
+  const dates = [...byDate.keys()].sort();
+  const readout = h('p', { class: 'chart-readout', 'aria-live': 'polite' });
+  const showReadout = (date) => {
+    const log = byDate.get(date);
+    readout.replaceChildren(
+      h('strong', {}, formatDate(date, today)),
+      h('span', { class: 'muted' }, ` · ${summarize(ex.measure, log.sets) || 'done'}${log.source === 'spreadsheet' ? ' · from spreadsheet' : ''}`));
+  };
+  const sync = createSync(dates.at(-1), showReadout);
+  showReadout(dates.at(-1));
+
+  return h('section', { class: 'card' }, head, readout,
+    charts.map((c) => lineChart({
+      points: c.series.map((p) => ({ date: p.date, value: p.value, text: '' })),
+      unit: c.metric.unit,
+      label: `${ex.name} ${c.metric.label.toLowerCase()} over time`,
+      title: c.metric.unit === c.metric.label.toLowerCase() ? c.metric.label : `${c.metric.label} (${c.metric.unit})`,
+      height: 130, from: dates[0], to: dates.at(-1), sync, readout: false, whole: c.metric.unit !== 'lb',
+    })),
+    h('p', { class: 'chart-note muted' }, parts.map((k) => `${METRICS[k].label}: ${METRICS[k].help[0].toLowerCase()}${METRICS[k].help.slice(1)}`).join(' '),
+      dates.length === 1 ? ' One workout so far, so the lines start after the next one.' : ' Tap a chart to read a workout.'));
 }
 
 export function renderHistoryList(app, ui) {
